@@ -28,10 +28,10 @@ jobs:
           USER_COOKIES_JSON: ${{ secrets.USER_COOKIES_JSON }}
         run: python multi_wake.py
 
-   #   - name: Upload Screenshots
-   #     if: always()  # 无论成功失败都上传截图
-   #     uses: actions/upload-artifact@v4
-   #     with:
-   #       name: app-previews
-   #       path: "*.png"
-   #       retention-days: 1
+      - name: Upload Screenshots
+        if: always()  # 无论成功失败都上传截图
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-previews
+          path: "*.png"
+          retention-days: 1
