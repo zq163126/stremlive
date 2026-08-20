@@ -95,7 +95,7 @@ def wake_with_browser():
                 if stop_locator.count() > 0 or text_stop_locator.count() > 0:
                     print(f"✨ 最终确认：已成功进入 App 内部，发现 {stop_locator.count()} 个头部组件。")
                 else:
-                    msg = f"🔎 未直接抓取到 Stop 按钮，请检查截图。\n用户: {user_name}\n目标地址: {target_url}\n疑似 Cookie 已失效。"
+                    msg = f"🔎 [streamlit] 未直接抓取到 Stop 按钮，请检查截图。\n用户: {user_name}\n目标地址: {target_url}\n疑似 Cookie 已失效。"
                     print(msg)
                     # 发生异常时先截取并保存当前画面
                     page.screenshot(path=screenshot_path)
