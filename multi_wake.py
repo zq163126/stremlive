@@ -1,11 +1,12 @@
 import os
 import json
 import time
-import requests
+import urllib.request
+import urllib.parse
 from playwright.sync_api import sync_playwright
 
 def send_telegram_notification(message, image_path=None):
-    """发送消息和截图至 Telegram"""
+    """发送消息和截图至 Telegram (使用 Python 标准库，免安装 requests)"""
     token = os.getenv("TG_BOT_TOKEN")
     chat_id = os.getenv("TG_CHAT_ID")
     
@@ -16,19 +17,37 @@ def send_telegram_notification(message, image_path=None):
     try:
         if image_path and os.path.exists(image_path):
             url = f"https://api.telegram.org/bot{token}/sendPhoto"
-            with open(image_path, "rb") as photos:
-                payload = {"chat_id": chat_id, "caption": message}
-                files = {"photo": photos}
-                response = requests.post(url, data=payload, files=files, timeout=15)
+            boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
+            
+            with open(image_path, "rb") as f:
+                img_data = f.read()
+
+            body = []
+            # chat_id field
+            body.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"chat_id\"\r\n\r\n{chat_id}\r\n".encode())
+            # caption field
+            body.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"caption\"\r\n\r\n{message}\r\n".encode())
+            # photo field
+            filename = os.path.basename(image_path)
+            body.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"{filename}\"\r\nContent-Type: image/png\r\n\r\n".encode())
+            body.append(img_data)
+            body.append(f"\r\n--{boundary}--\r\n".encode())
+
+            req = urllib.request.Request(
+                url,
+                data=b"".join(body),
+                headers={"Content-Type": f"multipart/form-data; boundary={boundary}"}
+            )
         else:
             url = f"https://api.telegram.org/bot{token}/sendMessage"
-            payload = {"chat_id": chat_id, "text": message}
-            response = requests.post(url, data=payload, timeout=15)
-            
-        if response.status_code == 200:
-            print("✅ 异常通知已成功发送至 Telegram")
-        else:
-            print(f"❌ Telegram 推送失败: {response.status_code} - {response.text}")
+            data = urllib.parse.urlencode({"chat_id": chat_id, "text": message}).encode("utf-8")
+            req = urllib.request.Request(url, data=data)
+
+        with urllib.request.urlopen(req, timeout=15) as response:
+            if response.status == 200:
+                print("✅ 异常通知已成功发送至 Telegram")
+            else:
+                print(f"❌ Telegram 推送失败: 状态码 {response.status}")
     except Exception as e:
         print(f"❌ 发送 Telegram 消息异常: {e}")
 
@@ -77,18 +96,23 @@ def wake_with_browser():
                 if page.locator('button[data-testid="manage-app-button"]').is_visible():
                     print("✅ 登录验证成功：发现 'Manage app' 按钮。")
 
-                # --- 维度 2：进入 iframe ---
+                # --- 维度 1.5：检测并点击唤醒按钮 (Wakeup Button) ---
+                # 检查外层页面是否存在唤醒按钮
+                outer_wakeup_btn = page.locator('button[data-testid="wakeup-button-owner"]')
+                # 检查 iframe 内部是否存在唤醒按钮
                 frame = page.frame_locator('iframe[title="streamlitApp"]')
-                
-                # 2.1 优先检查并点击唤醒/重启按钮
-                wakeup_btn = frame.locator('button[data-testid="wakeup-button-owner"]')
-                if wakeup_btn.count() > 0 and wakeup_btn.first.is_visible():
-                    print("💤 发现 'Yes, get this app back up!' 唤醒按钮，点击唤醒...")
-                    wakeup_btn.first.click()
-                    print("⏳ 已点击唤醒按钮，等待 30 秒让 App 加载...")
-                    time.sleep(30) 
-                
-                # 2.3 验证内部状态 (解决多元素冲突)
+                inner_wakeup_btn = frame.locator('button[data-testid="wakeup-button-owner"]')
+
+                if outer_wakeup_btn.count() > 0 and outer_wakeup_btn.first.is_visible():
+                    print("💤 在主页面发现 'Yes, get this app back up!' 按钮，点击唤醒...")
+                    outer_wakeup_btn.first.click()
+                    time.sleep(30)
+                elif inner_wakeup_btn.count() > 0 and inner_wakeup_btn.first.is_visible():
+                    print("💤 在 iframe 内发现 'Yes, get this app back up!' 按钮，点击唤醒...")
+                    inner_wakeup_btn.first.click()
+                    time.sleep(30)
+
+                # --- 维度 2：验证内部状态 (解决多元素冲突) ---
                 stop_locator = frame.locator('button[data-testid="stBaseButton-header"]')
                 text_stop_locator = frame.locator('text=Stop')
 
