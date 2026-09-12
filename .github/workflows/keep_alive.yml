@@ -27,6 +27,8 @@ jobs:
         env:
           # 在 GitHub Secrets 中设置此 JSON
           USER_COOKIES_JSON: ${{ secrets.USER_COOKIES_JSON }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: python multi_wake.py
 
     #  - name: Upload Screenshots
